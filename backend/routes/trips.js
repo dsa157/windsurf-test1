@@ -76,22 +76,24 @@ router.post('/save', async (req, res) => {
 });
 
 // Get trips for user
-router.get('/', async (req, res) => {
+router.get('/:userId', async (req, res) => {
   try {
-    const { userId } = req.query;
+    const { userId } = req.params;
 
-    // Validate user ID
-    if (!userId || typeof userId !== 'string') {
-      throw new Error('Invalid user ID');
+    // Find the user's ObjectID from UserReferences
+    const userRef = await UserReference.findOne({ userId });
+    if (!userRef) {
+      return res.status(404).json({ error: true, message: 'User not found' });
     }
 
-    const trips = await Trip.find({ user: userId });
+    // Find trips associated with the user's ObjectID
+    const trips = await Trip.find({ user: userRef.objectId });
     res.json(trips);
   } catch (error) {
     logger.error('Trip retrieval error', {
       message: error.message,
       stack: error.stack,
-      query: req.query,
+      params: req.params,
       timestamp: new Date().toISOString()
     });
     res.status(500).json({ 

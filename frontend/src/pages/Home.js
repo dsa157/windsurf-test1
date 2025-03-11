@@ -57,6 +57,8 @@ const validateTrip = (trip) => {
   return null;
 };
 
+const API_BASE_URL = process.env.REACT_APP_SERVER_URL || `http://localhost:${process.env.SERVER_PORT || 5001}`;
+
 const Home = () => {
   const [cities, setCities] = useState(['', '']);
   const [tripName, setTripName] = useState('');
@@ -130,7 +132,7 @@ const Home = () => {
 
   const fetchSavedTrips = async () => {
     try {
-      const response = await fetch(`http://localhost:5001/trips?userId=${userId}`);
+      const response = await fetch(`${API_BASE_URL}/trips?userId=${userId}`);
       const data = await response.json();
       setSavedTrips(data);
     } catch (error) {
@@ -158,7 +160,7 @@ const Home = () => {
         })),
         userId
       };
-      const response = await fetch('http://localhost:5001/trips/save', {
+      const response = await fetch(`${API_BASE_URL}/trips/save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
