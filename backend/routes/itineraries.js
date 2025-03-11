@@ -12,14 +12,21 @@ router.get('/', (req, res) => {
 router.post('/save', async (req, res) => {
   try {
     const { name, cities, userId } = req.body;
+    // Convert string dates to Date objects
+    const formattedCities = cities.map(city => ({
+      ...city,
+      arrivalDate: new Date(city.arrivalDate),
+      departureDate: new Date(city.departureDate)
+    }));
     const newTrip = new Trip({
       name,
-      cities,
+      cities: formattedCities,
       user: userId
     });
     await newTrip.save();
     res.status(201).json(newTrip);
   } catch (error) {
+    console.error('Error saving trip:', error);
     res.status(500).json({ message: error.message });
   }
 });
