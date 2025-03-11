@@ -35,9 +35,9 @@ const Trips = () => {
         <TableBody>
           {trips.map((trip) => (
             <TableRow key={trip._id}>
-              <TableCell>{trip.tripName}</TableCell>
-              <TableCell>{new Date(trip.startDate).toLocaleDateString()}</TableCell>
-              <TableCell>{new Date(trip.endDate).toLocaleDateString()}</TableCell>
+              <TableCell>{trip.name}</TableCell>
+              <TableCell>{new Date(trip.legs[0].arrivalDate).toLocaleDateString()}</TableCell>
+              <TableCell>{new Date(trip.legs[trip.legs.length - 1].departureDate).toLocaleDateString()}</TableCell>
               <TableCell>{trip.legs.length}</TableCell>
             </TableRow>
           ))}
