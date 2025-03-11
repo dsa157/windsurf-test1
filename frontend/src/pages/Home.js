@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, TextField, Button, Grid, Box, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
+import { Container, Typography, TextField, Button, Grid, Box, Table, TableHead, TableBody, TableRow, TableCell, Autocomplete } from '@mui/material';
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);
@@ -66,11 +66,30 @@ const Home = () => {
   const [confirmation, setConfirmation] = useState('');
   const [savedTrips, setSavedTrips] = useState([]);
   const [userId, setUserId] = useState('dsa157');
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+
+  const fetchCities = async (query) => {
+    if (query.length < 3) return;
+    setLoadingCities(true);
+    try {
+      const response = await fetch(`https://api.thecompaniesapi.com/v2/locations/cities?search=${query}`);
+      const data = await response.json();
+      setCitySuggestions(data.cities.map(city => `${city.name}, ${city.country.name}`));
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+    } finally {
+      setLoadingCities(false);
+    }
+  };
 
   const handleCityChange = (index, value) => {
-    const newCities = [...cities];
-    newCities[index] = value;
-    setCities(newCities);
+    const updatedLegs = [...legs];
+    updatedLegs[index].city = value;
+    setLegs(updatedLegs);
+    if (value.length >= 3) {
+      fetchCities(value);
+    }
   };
 
   const handleAddCity = () => {
@@ -191,11 +210,20 @@ const Home = () => {
               <Typography variant="h6">Leg {index + 1}</Typography>
             </Grid>
             <Grid item xs={12} sm={10}>
-              <TextField
-                label="City"
+              <Autocomplete
+                freeSolo
+                options={citySuggestions}
+                loading={loadingCities}
                 value={leg.city}
-                onChange={(e) => handleLegChange(index, 'city', e.target.value)}
-                fullWidth
+                onChange={(e, value) => handleLegChange(index, 'city', value)}
+                onInputChange={(e, value) => handleCityChange(index, value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="City"
+                    fullWidth
+                  />
+                )}
               />
             </Grid>
 
