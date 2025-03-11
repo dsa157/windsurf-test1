@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { TextField, Button, Box, Typography, Grid, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
@@ -24,6 +24,19 @@ function App() {
   const [legs, setLegs] = useState([
     { city: '', arrivalDate: '', departureDate: '' }
   ]);
+  const [confirmation, setConfirmation] = useState('');
+  const [savedTrips, setSavedTrips] = useState([]);
+  const [userId, setUserId] = useState('');
+
+  const handleTripNameChange = (e) => {
+    setTripName(e.target.value);
+    setConfirmation('');
+  };
+
+  const handleUserIdChange = (e) => {
+    setUserId(e.target.value);
+    setConfirmation('');
+  };
 
   const handleLegChange = (index, field, value) => {
     const updatedLegs = [...legs];
@@ -32,6 +45,7 @@ function App() {
       updatedLegs[index + 1].arrivalDate = value;
     }
     setLegs(updatedLegs);
+    setConfirmation('');
   };
 
   const addLeg = () => {
@@ -46,32 +60,54 @@ function App() {
     return Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
   };
 
+  const fetchSavedTrips = async () => {
+    try {
+      const response = await fetch(`http://localhost:5001/trips?userId=${userId}`);
+      const data = await response.json();
+      setSavedTrips(data);
+    } catch (error) {
+      console.error('Error fetching trips:', error);
+    }
+  };
+
   const handleSaveTrip = async () => {
     try {
-      const userId = localStorage.getItem('userId');
-      const response = await fetch('http://localhost:5001/itineraries/save', {
+      const requestBody = {
+        name: tripName,
+        legs: legs.map((leg, index) => ({
+          name: String(index + 1), // Use leg index as name
+          ...leg,
+          days: calculateDays(leg.arrivalDate, leg.departureDate)
+        })),
+        userId
+      };
+      console.log('Request Body:', requestBody);
+      const response = await fetch('http://localhost:5001/trips/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: tripName,
-          legs: legs.map(leg => ({
-            ...leg,
-            days: calculateDays(leg.arrivalDate, leg.departureDate)
-          })),
-          userId
-        }),
+        body: JSON.stringify(requestBody),
       });
+      console.log('Response Status:', response.status);
       if (!response.ok) {
-        throw new Error('Failed to save trip');
+        const errorData = await response.json();
+        console.error('Error saving trip:', errorData);
+        throw new Error(errorData.message || 'Failed to save trip');
       }
       const savedTrip = await response.json();
-      console.log('Trip saved:', savedTrip);
+      console.log('Saved Trip:', savedTrip);
+      setConfirmation(`Trip '${savedTrip.name}' saved successfully!`);
+      fetchSavedTrips();
     } catch (error) {
       console.error('Error saving trip:', error);
+      setConfirmation('Error saving trip. Please try again.');
     }
   };
+
+  useEffect(() => {
+    fetchSavedTrips();
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
@@ -82,7 +118,14 @@ function App() {
           <TextField
             label="Trip Name"
             value={tripName}
-            onChange={(e) => setTripName(e.target.value)}
+            onChange={handleTripNameChange}
+            fullWidth
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="UserID"
+            value={userId}
+            onChange={handleUserIdChange}
             fullWidth
             sx={{ mb: 2 }}
           />
@@ -138,6 +181,30 @@ function App() {
               Save Trip
             </Button>
           </Box>
+          {confirmation && (
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <Typography color="success.main">{confirmation}</Typography>
+            </Box>
+          )}
+          {savedTrips.length > 0 && (
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h5" gutterBottom>Saved Trips</Typography>
+              {savedTrips.map(trip => (
+                <Box key={trip._id} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  <Typography variant="h6">{trip.name}</Typography>
+                  {trip.legs.map((leg, index) => (
+                    <Box key={index} sx={{ mt: 1 }}>
+                      <Typography>Leg {index + 1}: {leg.name}</Typography>
+                      <Typography>City: {leg.city}</Typography>
+                      <Typography>Arrival: {new Date(leg.arrivalDate).toLocaleDateString()}</Typography>
+                      <Typography>Departure: {new Date(leg.departureDate).toLocaleDateString()}</Typography>
+                      <Typography>Days: {leg.days}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              ))}
+            </Box>
+          )}
         </Box>
         <Routes>
           <Route path="/" element={<Home />} />

@@ -5,7 +5,7 @@ const TripSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  cities: [{
+  legs: [{
     name: {
       type: String,
       required: true
