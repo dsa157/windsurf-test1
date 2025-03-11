@@ -1,10 +1,13 @@
 import React from 'react';
+import { Typography, Box } from '@mui/material';
 
 const Contact = () => (
-  <div>
-    <h1>Contact Page</h1>
-    <p>This is the contact page content.</p>
-  </div>
+  <Box sx={{ p: 3 }}>
+    <Typography variant="h4" gutterBottom>Contact Page</Typography>
+    <Typography variant="body1">
+      This is the contact page content.
+    </Typography>
+  </Box>
 );
 
 export default Contact;
