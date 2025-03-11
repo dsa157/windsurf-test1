@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import axios from 'axios';
-import { TextField, Button, Box, Typography } from '@mui/material';
+import { TextField, Button, Box, Typography, Grid, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
 
 import Home from './pages/Home';
-import Itinerary from './pages/Itinerary';
+import About from './pages/About';
+import Contact from './pages/Contact';
 import Navbar from './components/Navbar';
 
 const theme = createTheme({
@@ -21,61 +21,55 @@ const theme = createTheme({
 
 function App() {
   const [tripName, setTripName] = useState('');
-  const [cities, setCities] = useState([]);
-  const [newCity, setNewCity] = useState({
-    name: '',
-    arrivalDate: '',
-    departureDate: '',
-    days: 0
-  });
-  const [dateError, setDateError] = useState(false);
+  const [legs, setLegs] = useState([
+    { city: '', arrivalDate: '', departureDate: '' }
+  ]);
 
-  const isValidDate = (dateString) => {
-    const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/(19|20)\d\d$/;
-    if (!regex.test(dateString)) return false;
-    const date = new Date(dateString);
-    return date instanceof Date && !isNaN(date);
+  const handleLegChange = (index, field, value) => {
+    const updatedLegs = [...legs];
+    updatedLegs[index][field] = value;
+    if (field === 'departureDate' && index < legs.length - 1) {
+      updatedLegs[index + 1].arrivalDate = value;
+    }
+    setLegs(updatedLegs);
   };
 
-  const calculateDays = (arrival, departure) => {
-    const arrivalDate = new Date(arrival);
-    const departureDate = new Date(departure);
-    const timeDiff = departureDate.getTime() - arrivalDate.getTime();
-    return Math.ceil(timeDiff / (1000 * 3600 * 24));
+  const addLeg = () => {
+    const lastLeg = legs[legs.length - 1];
+    setLegs([...legs, { city: '', arrivalDate: lastLeg.departureDate, departureDate: '' }]);
   };
 
-  const handleAddCity = () => {
-    if (!isValidDate(newCity.arrivalDate) || !isValidDate(newCity.departureDate)) {
-      setDateError(true);
-      return;
-    }
-    setDateError(false);
-    const arrival = new Date(newCity.arrivalDate);
-    const departure = new Date(newCity.departureDate);
-    if (departure > arrival) {
-      const days = calculateDays(newCity.arrivalDate, newCity.departureDate);
-      setCities([...cities, { ...newCity, days }]);
-      setNewCity({
-        name: '',
-        arrivalDate: '',
-        departureDate: '',
-        days: 0
-      });
-    }
+  const calculateDays = (arrivalDate, departureDate) => {
+    if (!arrivalDate || !departureDate) return 0;
+    const arrival = new Date(arrivalDate);
+    const departure = new Date(departureDate);
+    return Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
   };
 
   const handleSaveTrip = async () => {
     try {
       const userId = localStorage.getItem('userId');
-      const response = await axios.post('http://localhost:5001/api/itineraries/save', {
-        name: tripName,
-        cities,
-        userId
+      const response = await fetch('http://localhost:5001/itineraries/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: tripName,
+          legs: legs.map(leg => ({
+            ...leg,
+            days: calculateDays(leg.arrivalDate, leg.departureDate)
+          })),
+          userId
+        }),
       });
-      alert('Trip saved successfully!');
+      if (!response.ok) {
+        throw new Error('Failed to save trip');
+      }
+      const savedTrip = await response.json();
+      console.log('Trip saved:', savedTrip);
     } catch (error) {
       console.error('Error saving trip:', error);
-      alert('Failed to save trip');
     }
   };
 
@@ -84,7 +78,7 @@ function App() {
       <Router>
         <Navbar />
         <Box sx={{ p: 3 }}>
-          <Typography variant="h4" gutterBottom>Save Your Trip</Typography>
+          <Typography variant="h4" gutterBottom>Create Trip</Typography>
           <TextField
             label="Trip Name"
             value={tripName}
@@ -92,53 +86,63 @@ function App() {
             fullWidth
             sx={{ mb: 2 }}
           />
-          <Box sx={{ mb: 2 }}>
-            <TextField
-              label="City Name"
-              value={newCity.name}
-              onChange={(e) => setNewCity({ ...newCity, name: e.target.value })}
-              fullWidth
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              label="Arrival Date"
-              value={newCity.arrivalDate}
-              onChange={(e) => setNewCity({ ...newCity, arrivalDate: e.target.value })}
-              placeholder="MM/DD/YYYY"
-              fullWidth
-              sx={{ mb: 2 }}
-              error={dateError && !isValidDate(newCity.arrivalDate)}
-              helperText={dateError && !isValidDate(newCity.arrivalDate) ? 'Invalid date format' : ''}
-            />
-            <TextField
-              label="Departure Date"
-              value={newCity.departureDate}
-              onChange={(e) => setNewCity({ ...newCity, departureDate: e.target.value })}
-              placeholder="MM/DD/YYYY"
-              fullWidth
-              sx={{ mb: 2 }}
-              error={dateError && !isValidDate(newCity.departureDate)}
-              helperText={dateError && !isValidDate(newCity.departureDate) ? 'Invalid date format' : ''}
-            />
-            <Button variant="contained" onClick={handleAddCity} disabled={!newCity.name || !newCity.arrivalDate || !newCity.departureDate}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Leg</TableCell>
+                <TableCell>City Name</TableCell>
+                <TableCell>Arrival Date</TableCell>
+                <TableCell>Departure Date</TableCell>
+                <TableCell>Total Days</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {legs.map((leg, index) => (
+                <TableRow key={index}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    <TextField
+                      value={leg.city}
+                      onChange={(e) => handleLegChange(index, 'city', e.target.value)}
+                      fullWidth
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      type="date"
+                      value={leg.arrivalDate}
+                      onChange={(e) => handleLegChange(index, 'arrivalDate', e.target.value)}
+                      fullWidth
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      type="date"
+                      value={leg.departureDate}
+                      onChange={(e) => handleLegChange(index, 'departureDate', e.target.value)}
+                      fullWidth
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {calculateDays(leg.arrivalDate, leg.departureDate)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Box sx={{ mt: 2 }}>
+            <Button variant="contained" onClick={addLeg}>
               Add City
             </Button>
+            <Button variant="contained" onClick={handleSaveTrip} sx={{ ml: 2 }}>
+              Save Trip
+            </Button>
           </Box>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h6">Cities:</Typography>
-            {cities.map((city, index) => (
-              <Box key={index} sx={{ mb: 1 }}>
-                <Typography>{city.name} ({city.days} days)</Typography>
-              </Box>
-            ))}
-          </Box>
-          <Button variant="contained" onClick={handleSaveTrip} disabled={!tripName || cities.length === 0}>
-            Save Trip
-          </Button>
         </Box>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/itinerary" element={<Itinerary />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
         </Routes>
       </Router>
     </ThemeProvider>
