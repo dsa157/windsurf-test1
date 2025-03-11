@@ -16,6 +16,8 @@ router.post('/save', async (req, res) => {
   try {
     const { name, legs, userId } = req.body;
 
+    logger.info('Trips API call - Save trip', { userId, timestamp: new Date().toISOString() });
+
     // Validate user ID
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user ID');
@@ -56,6 +58,7 @@ router.post('/save', async (req, res) => {
     });
 
     await trip.save();
+    logger.info('Trip saved successfully', { tripId: trip._id, userId, timestamp: new Date().toISOString() });
     res.status(201).json(trip);
   } catch (error) {
     logger.error('Trip save error', {
@@ -80,15 +83,22 @@ router.get('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Find the user's ObjectID from UserReferences
-    const userRef = await UserReference.findOne({ userId });
+    logger.info('Trips API call - Get trips for user', { userId, timestamp: new Date().toISOString() });
+
+    // Find the user's ObjectID from userreferences
+    const userRef = await UserReference.findOne({ userId }).exec();
     if (!userRef) {
-      return res.status(404).json({ error: true, message: 'User not found' });
+      return res.status(404).json({ error: true, message: `User ${userId} not found` });
     }
 
     // Find trips associated with the user's ObjectID
-    const trips = await Trip.find({ user: userRef.objectId });
+    const trips = await Trip.find({ user: userRef.objectId }).exec();
+    if (!trips || trips.length === 0) {
+      return res.status(404).json({ error: true, message: `No trips found for user ${userId}` });
+    }
+
     res.json(trips);
+    logger.info('Trips retrieved successfully', { userId, tripCount: trips.length, timestamp: new Date().toISOString() });
   } catch (error) {
     logger.error('Trip retrieval error', {
       message: error.message,

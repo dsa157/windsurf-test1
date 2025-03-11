@@ -8,9 +8,8 @@ const UserReferenceSchema = new mongoose.Schema({
   },
   objectId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    unique: true
+    required: true
   }
-});
+}, { collection: 'userreferences' });
 
 export default mongoose.model('UserReference', UserReferenceSchema);

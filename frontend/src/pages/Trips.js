@@ -7,7 +7,7 @@ const Trips = () => {
   useEffect(() => {
     const fetchTrips = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/trips/travel-planner');
+        const response = await fetch('http://localhost:5001/trips/dsa157');
         const data = await response.json();
         setTrips(data);
       } catch (error) {
