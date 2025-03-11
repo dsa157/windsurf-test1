@@ -1,6 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Typography, TextField, Button, Grid, Box, Table, TableHead, TableBody, TableRow, TableCell } from '@mui/material';
 
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+};
+
+const formatDateInput = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date)) return '';
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+};
+
+const parseDateInput = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return isNaN(date) ? '' : date;
+};
+
+const getTripSummary = (trip) => {
+  const arrivalDates = trip.legs.map(leg => new Date(leg.arrivalDate));
+  const departureDates = trip.legs.map(leg => new Date(leg.departureDate));
+  return {
+    name: trip.name,
+    earliestArrival: formatDate(new Date(Math.min(...arrivalDates))),
+    latestDeparture: formatDate(new Date(Math.max(...departureDates)))
+  };
+};
+
+const validateTrip = (trip) => {
+  if (!trip.name || trip.name.trim() === '') {
+    return 'Trip name is required';
+  }
+  if (!trip.userId || trip.userId.trim() === '') {
+    return 'User ID is required';
+  }
+  for (let i = 0; i < trip.legs.length; i++) {
+    const leg = trip.legs[i];
+    if (!leg.city || leg.city.trim() === '') {
+      return `City is required for leg ${i + 1}`;
+    }
+    if (!leg.arrivalDate || isNaN(new Date(leg.arrivalDate))) {
+      return `Invalid arrival date for leg ${i + 1}`;
+    }
+    if (!leg.departureDate || isNaN(new Date(leg.departureDate))) {
+      return `Invalid departure date for leg ${i + 1}`;
+    }
+    if (new Date(leg.arrivalDate) > new Date(leg.departureDate)) {
+      return `Arrival date must be before departure date for leg ${i + 1}`;
+    }
+    if (i > 0 && new Date(trip.legs[i - 1].departureDate) > new Date(leg.arrivalDate)) {
+      return `Leg ${i} arrival date must be after previous leg's departure date`;
+    }
+  }
+  return null;
+};
+
 const Home = () => {
   const [cities, setCities] = useState(['', '']);
   const [tripName, setTripName] = useState('');
@@ -9,7 +65,7 @@ const Home = () => {
   ]);
   const [confirmation, setConfirmation] = useState('');
   const [savedTrips, setSavedTrips] = useState([]);
-  const [userId, setUserId] = useState('');
+  const [userId, setUserId] = useState('dsa157');
 
   const handleCityChange = (index, value) => {
     const newCities = [...cities];
@@ -64,6 +120,15 @@ const Home = () => {
   };
 
   const handleSaveTrip = async () => {
+    const validationError = validateTrip({
+      name: tripName,
+      userId: userId,
+      legs: legs
+    });
+    if (validationError) {
+      setConfirmation(validationError);
+      return;
+    }
     try {
       const requestBody = {
         name: tripName,
@@ -99,95 +164,127 @@ const Home = () => {
   }, []);
 
   return (
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>Create Trip</Typography>
-        <TextField
-          label="Trip Name"
-          value={tripName}
-          onChange={handleTripNameChange}
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-        <TextField
-          label="UserID"
-          value={userId}
-          onChange={handleUserIdChange}
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Leg</TableCell>
-              <TableCell>City Name</TableCell>
-              <TableCell>Arrival Date</TableCell>
-              <TableCell>Departure Date</TableCell>
-              <TableCell>Total Days</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {legs.map((leg, index) => (
-              <TableRow key={index}>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>
-                  <TextField
-                    value={leg.city}
-                    onChange={(e) => handleLegChange(index, 'city', e.target.value)}
-                    fullWidth
-                  />
-                </TableCell>
-                <TableCell>
-                  <TextField
-                    type="date"
-                    value={leg.arrivalDate}
-                    onChange={(e) => handleLegChange(index, 'arrivalDate', e.target.value)}
-                    fullWidth
-                  />
-                </TableCell>
-                <TableCell>
-                  <TextField
-                    type="date"
-                    value={leg.departureDate}
-                    onChange={(e) => handleLegChange(index, 'departureDate', e.target.value)}
-                    fullWidth
-                  />
-                </TableCell>
-                <TableCell>
-                  {calculateDays(leg.arrivalDate, leg.departureDate)}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <Box sx={{ mt: 2 }}>
-          <Button variant="contained" onClick={addLeg}>Add City</Button>
-          <Button variant="contained" onClick={handleSaveTrip} sx={{ ml: 2 }}>Save Trip</Button>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>Create Trip</Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="Trip Name"
+            value={tripName}
+            onChange={handleTripNameChange}
+            fullWidth
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            label="UserID"
+            value={userId}
+            onChange={handleUserIdChange}
+            fullWidth
+          />
+        </Grid>
+      </Grid>
+      {legs.map((leg, index) => (
+        <Box key={index} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={2}>
+              <Typography variant="h6">Leg {index + 1}</Typography>
+            </Grid>
+            <Grid item xs={12} sm={10}>
+              <TextField
+                label="City"
+                value={leg.city}
+                onChange={(e) => handleLegChange(index, 'city', e.target.value)}
+                fullWidth
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={4}>
+              <TextField
+                type="date"
+                label="Arrive"
+                value={leg.arrivalDate || ''}
+                onChange={(e) => handleLegChange(index, 'arrivalDate', e.target.value)}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                type="date"
+                label="Depart"
+                value={leg.departureDate || ''}
+                onChange={(e) => handleLegChange(index, 'departureDate', e.target.value)}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Days"
+                value={calculateDays(leg.arrivalDate, leg.departureDate)}
+                fullWidth
+                disabled
+              />
+            </Grid>
+          </Grid>
         </Box>
-        {confirmation && (
-          <Box sx={{ mt: 2, mb: 2 }}>
-            <Typography color="success.main">{confirmation}</Typography>
-          </Box>
-        )}
-        {savedTrips.length > 0 && (
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" gutterBottom>Saved Trips</Typography>
-            {savedTrips.map(trip => (
-              <Box key={trip._id} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                <Typography variant="h6">{trip.name}</Typography>
-                {trip.legs.map((leg, index) => (
-                  <Box key={index} sx={{ mt: 1 }}>
-                    <Typography>Leg {index + 1}: {leg.name}</Typography>
-                    <Typography>City: {leg.city}</Typography>
-                    <Typography>Arrival: {new Date(leg.arrivalDate).toLocaleDateString()}</Typography>
-                    <Typography>Departure: {new Date(leg.departureDate).toLocaleDateString()}</Typography>
-                    <Typography>Days: {leg.days}</Typography>
-                  </Box>
-                ))}
-              </Box>
-            ))}
-          </Box>
-        )}
+      ))}
+      <Box sx={{ mt: 2 }}>
+        <Button variant="contained" onClick={addLeg}>Add Leg</Button>
+        <Button variant="contained" onClick={handleSaveTrip} sx={{ ml: 2 }}>Save Trip</Button>
       </Box>
+      {confirmation && (
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Typography color="success.main">{confirmation}</Typography>
+        </Box>
+      )}
+      {savedTrips.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h5" gutterBottom>Saved Trips</Typography>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Trip Name</TableCell>
+                <TableCell>Earliest Arrival Date</TableCell>
+                <TableCell>Latest Departure Date</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {savedTrips.map(trip => {
+                const summary = getTripSummary(trip);
+                return (
+                  <TableRow key={trip._id}>
+                    <TableCell>{summary.name}</TableCell>
+                    <TableCell>{summary.earliestArrival}</TableCell>
+                    <TableCell>{summary.latestDeparture}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+      {savedTrips.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h5" gutterBottom>Saved Trips Details</Typography>
+          {savedTrips.map(trip => (
+            <Box key={trip._id} sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+              <Typography variant="h6">{trip.name}</Typography>
+              {trip.legs.map((leg, index) => (
+                <Box key={index} sx={{ mt: 1 }}>
+                  <Typography>Leg {index + 1}: {leg.name}</Typography>
+                  <Typography>City: {leg.city}</Typography>
+                  <Typography>Arrival: {formatDate(leg.arrivalDate)}</Typography>
+                  <Typography>Departure: {formatDate(leg.departureDate)}</Typography>
+                  <Typography>Days: {leg.days}</Typography>
+                </Box>
+              ))}
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
   );
 };
 
